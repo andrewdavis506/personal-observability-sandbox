@@ -1,0 +1,50 @@
+version: '3.7'
+
+services:
+  prometheus:
+    image: prom/prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+
+  grafana:
+    image: grafana/grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    depends_on:
+      - prometheus
+      - loki
+
+  node_exporter:
+    image: prom/node-exporter
+    ports:
+      - "9100:9100"
+
+  loki:
+    image: grafana/loki:2.9.2
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/loki-config.yml
+    volumes:
+    - ./loki/loki-config.yml:/etc/loki/loki-config.yml
+    - ./loki/data/index:/tmp/loki/index
+    - ./loki/data/boltdb-cache:/tmp/loki/boltdb-cache
+    - ./loki/data/chunks:/tmp/loki/chunks
+    - ./loki/data/compactor:/tmp/loki/compactor
+    - ./loki/data/wal:/tmp/loki/wal
+
+  promtail:
+    image: grafana/promtail:2.9.2
+    volumes:
+      - ./logs:/var/log/fake
+      - ./promtail/promtail-config.yml:/etc/promtail/promtail-config.yml
+    command: -config.file=/etc/promtail/promtail-config.yml
+
+  fake-logger:
+    image: busybox
+    command: /bin/sh -c "while true; do echo [$(date)] Hello from FakeApp >> /logs/fakeapp.log; sleep 5; done"
+    volumes:
+      - ./logs:/logs
